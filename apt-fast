@@ -12,6 +12,15 @@
 #
 [ -n "$DEBUG" ] && set -xv
 
+if [[ $PATH == *"com.termux"* ]]; then
+	termux=1
+	prefix=$PREFIX
+else
+	termux=0
+	prefix="/"
+fi 
+
+
 # Print colored messages.
 # Usage: msg "message text" "message type" "optional: err"
 # Message types are 'normal', 'hint' or 'warning'. Warnings and messages with a
@@ -34,15 +43,27 @@ msg(){
 }
 
 # Search for known options and decide if root privileges are needed.
-root=1  # default value: we need root privileges
+
+if [[ "$termux" == "1" ]]; then
+	root=0
+else
+	root=1  # default value: we need root privileges
+fi
+
 option=
 for argument in "$@"; do
   case "$argument" in
     upgrade | full-upgrade | install | dist-upgrade | build-dep)
       option="install"
+      if [[ "$termux" == "1" ]]; then
+	root=0
+      fi
       ;;
     clean | autoclean)
       option="clean"
+      if [[ "$termux" == "1" ]]; then
+	root=0
+      fi
       ;;
     download)
       option="download"
@@ -114,7 +135,7 @@ fi
 # permissions.
 # We need lock for non-root commands too, because we only have one download
 # list file.
-LCK_FILE="/tmp/apt-fast"
+LCK_FILE="${PREFIX}/tmp/apt-fast"
 LCK_FD=99
 
 # Set default package manager, APT cache, temporary download dir,
@@ -130,7 +151,7 @@ else
 fi
 # Currently not needed.
 eval "$(apt-config shell LISTDIR Dir::State::lists/d)"
-DLLIST="/tmp/apt-fast.list"
+DLLIST="${PREFIX}/tmp/apt-fast.list"
 _MAXNUM=5
 _MAXCONPERSRV=10
 _SPLITCON=8
@@ -161,7 +182,7 @@ VERBOSE_OUTPUT=
 _DOWNLOADER='aria2c --no-conf -c -j ${_MAXNUM} -x ${_MAXCONPERSRV} -s ${_SPLITCON} -i ${DLLIST} --min-split-size=${_MINSPLITSZ} --stream-piece-selector=${_PIECEALGO} --connect-timeout=600 --timeout=600 -m0 --header "Accept: */*"'
 
 # Load config file.
-CONFFILE="/etc/apt-fast.conf"
+CONFFILE="${PREFIX}/etc/apt-fast.conf"
 if [ -e "$CONFFILE" ]; then
     source "$CONFFILE"
 fi
